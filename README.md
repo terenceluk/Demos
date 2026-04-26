@@ -25,16 +25,3 @@ All HTML demos are standalone files with no dependencies:
 2. Double-click to open in your default browser  
    — or right-click → *Open with* → your browser of choice
 
----
-
-## Contributing / Adding New Demos
-
-1. Place the files in the appropriate technology folder (e.g. `HTML/`, `Python/`, `React/`)
-2. Update this README with a row in the relevant table
-3. Push to the repo:
-
-```bash
-git add .
-git commit -m "Add <demo name>"
-git push
-```
