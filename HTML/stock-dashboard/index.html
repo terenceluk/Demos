@@ -1,0 +1,2600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stock Dashboard</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card-bg: #1a1d27;
+      --card-border: #2a2d3a;
+      --text-primary: #e2e8f0;
+      --text-secondary: #8892a4;
+      --accent: #3b82f6;
+      --green: #22c55e;
+      --red: #ef4444;
+      --surface-shadow: 0 8px 28px rgba(0,0,0,0.35);
+      --surface-shadow-soft: 0 4px 14px rgba(0,0,0,0.4);
+      --toast-bg: #1e2436;
+      --skeleton-a: #1e2130;
+      --skeleton-b: #282c42;
+      --radius: 12px;
+    }
+
+    body[data-theme="light"] {
+      --bg: #f3f6fb;
+      --card-bg: #ffffff;
+      --card-border: #d8e0ec;
+      --text-primary: #132033;
+      --text-secondary: #5e7188;
+      --accent: #2563eb;
+      --green: #16a34a;
+      --red: #dc2626;
+      --surface-shadow: 0 8px 24px rgba(15, 23, 42, 0.10);
+      --surface-shadow-soft: 0 4px 14px rgba(15, 23, 42, 0.12);
+      --toast-bg: #ffffff;
+      --skeleton-a: #e8eef6;
+      --skeleton-b: #d9e4f1;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    body[data-theme="dark"]  { color-scheme: dark; }
+    body[data-theme="light"] { color-scheme: light; }
+
+    /* ── Header ── */
+    header {
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .logo {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .market-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+    }
+
+    .market-pill .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    .market-pill.closed .dot {
+      background: var(--text-secondary);
+      animation: none;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .last-updated {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+
+    /* ── Main ── */
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    /* ── Add bar ── */
+    .add-bar {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.75rem;
+      flex-wrap: wrap;
+      position: relative;
+    }
+
+    .add-bar input {
+      flex: 1;
+      min-width: 220px;
+      padding: 0.75rem 1rem;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .add-bar input:focus { border-color: var(--accent); }
+    .add-bar input::placeholder { color: var(--text-secondary); }
+
+    .autocomplete-menu {
+      position: absolute;
+      top: calc(100% + 0.35rem);
+      left: 0;
+      width: min(420px, calc(100vw - 2rem));
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      box-shadow: var(--surface-shadow-soft);
+      overflow: hidden;
+      z-index: 30;
+      display: none;
+    }
+
+    .autocomplete-menu.open { display: block; }
+
+    .autocomplete-item {
+      width: 100%;
+      border: none;
+      background: transparent;
+      color: var(--text-primary);
+      padding: 0.75rem 0.95rem;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      font: inherit;
+    }
+
+    .autocomplete-item:hover,
+    .autocomplete-item.active {
+      background: rgba(59,130,246,0.10);
+    }
+
+    body[data-theme="light"] .autocomplete-item:hover,
+    body[data-theme="light"] .autocomplete-item.active {
+      background: rgba(37,99,235,0.08);
+    }
+
+    .autocomplete-item-symbol {
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .autocomplete-item-meta {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn:hover { opacity: 0.85; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .btn-ghost {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-primary);
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+    }
+
+    /* ── Help button ── */
+    .help-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1.5px solid var(--card-border);
+      background: var(--card-bg);
+      color: var(--text-secondary);
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+
+    .help-btn:hover, .help-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(59,130,246,0.08);
+    }
+
+    /* ── Help panel ── */
+    .help-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      z-index: 200;
+      animation: fadeIn 0.18s ease;
+    }
+
+    .help-backdrop.open { display: block; }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .help-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: min(400px, 92vw);
+      background: var(--card-bg);
+      border-left: 1px solid var(--card-border);
+      box-shadow: -6px 0 32px rgba(0,0,0,0.28);
+      z-index: 201;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.24s cubic-bezier(0.4,0,0.2,1);
+      overflow: hidden;
+    }
+
+    .help-panel.open { transform: translateX(0); }
+
+    .help-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.1rem 1.35rem;
+      border-bottom: 1px solid var(--card-border);
+      flex-shrink: 0;
+    }
+
+    .help-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .help-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      color: var(--text-secondary);
+      padding: 4px 6px;
+      border-radius: 5px;
+      transition: color 0.15s;
+    }
+
+    .help-close:hover { color: var(--red); }
+
+    .help-body {
+      overflow-y: auto;
+      padding: 1rem 1.35rem 2rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
+    .help-section {
+      padding: 0.85rem 0;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .help-section:last-child { border-bottom: none; }
+
+    .help-section-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 0.42rem;
+      letter-spacing: 0.01em;
+    }
+
+    .help-section p {
+      font-size: 0.79rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    .help-section kbd {
+      display: inline-block;
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 0.74rem;
+      font-family: inherit;
+      color: var(--text-primary);
+    }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .stock-count {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .refresh-badge {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    /* ── Grid ── */
+    .stock-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+
+    .stock-grid.cols-1 { grid-template-columns: 1fr; }
+    .stock-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .stock-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .stock-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+    /* ── Column picker ── */
+    .col-picker {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 7px;
+      padding: 3px;
+    }
+
+    .col-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: color 0.15s, background 0.15s;
+      line-height: 1;
+    }
+
+    .col-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.07); }
+    .col-btn.active { color: var(--accent); background: rgba(59,130,246,0.15); }
+
+    body[data-theme="light"] .col-btn:hover { background: rgba(37,99,235,0.08); }
+    body[data-theme="light"] .col-btn.active { background: rgba(37,99,235,0.12); }
+
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.32rem 0.65rem;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 999px;
+      color: var(--text-secondary);
+      font-size: 0.76rem;
+      font-weight: 600;
+      user-select: none;
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+
+    .theme-toggle:hover {
+      color: var(--text-primary);
+      border-color: color-mix(in srgb, var(--card-border) 65%, var(--accent));
+    }
+
+    .theme-toggle input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .theme-toggle-track {
+      position: relative;
+      width: 42px;
+      height: 24px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #20293a 0%, #121927 100%);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+      transition: background 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .theme-toggle-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #f8fafc;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.28);
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .theme-toggle-icon {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 11px;
+      line-height: 1;
+      pointer-events: none;
+    }
+
+    .theme-toggle-icon.sun { right: 6px; opacity: 0.55; }
+    .theme-toggle-icon.moon { left: 6px; opacity: 0.8; }
+
+    .theme-toggle input:checked + .theme-toggle-track {
+      background: linear-gradient(180deg, #bfdbfe 0%, #60a5fa 100%);
+    }
+
+    .theme-toggle input:checked + .theme-toggle-track .theme-toggle-thumb {
+      transform: translateX(18px);
+      background: #ffffff;
+    }
+
+    .theme-toggle input:focus-visible + .theme-toggle-track {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* ── Card ── */
+    .stock-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .stock-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--surface-shadow);
+    }
+
+    .stock-card.loading-card {
+      box-shadow: var(--surface-shadow-soft);
+    }
+
+    .stock-card[draggable=true] { cursor: grab; }
+    .stock-card[draggable=true]:active { cursor: grabbing; }
+    .stock-card.drag-over { outline: 2px dashed var(--accent); outline-offset: 2px; }
+
+    .drag-handle {
+      cursor: grab;
+      color: var(--text-secondary);
+      font-size: 1rem;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 4px;
+      user-select: none;
+      opacity: 0.45;
+      transition: opacity 0.15s;
+    }
+
+    .drag-handle:hover { opacity: 0.9; }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.9rem;
+    }
+
+    .card-header-left { min-width: 0; }
+
+    .card-header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.35rem;
+      margin-left: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    .card-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .symbol {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .company-name {
+      font-size: 0.73rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 190px;
+    }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 2px 5px;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+
+    .remove-btn:hover {
+      color: var(--red);
+      background: rgba(239,68,68,0.12);
+    }
+
+    .custom-range-toggle {
+      background: none;
+      border: 1px solid var(--card-border);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 999px;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      font-family: inherit;
+      letter-spacing: 0.02em;
+    }
+
+    .custom-range-toggle:hover {
+      color: var(--text-primary);
+      border-color: var(--accent);
+    }
+
+    .custom-range-toggle.active {
+      color: var(--accent);
+      border-color: rgba(59,130,246,0.3);
+      background: rgba(59,130,246,0.12);
+    }
+
+    .custom-range-panel {
+      display: none;
+      width: min(100%, 280px);
+      padding: 0.55rem;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--card-bg) 88%, var(--bg) 12%);
+      box-shadow: var(--surface-shadow-soft);
+    }
+
+    .custom-range-panel.open {
+      display: block;
+    }
+
+    .custom-range-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .custom-range-dates-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.35rem;
+    }
+
+    .custom-range-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.22rem;
+      min-width: 0;
+    }
+
+    .custom-range-field span {
+      font-size: 0.62rem;
+      color: var(--text-secondary);
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .custom-range-input {
+      width: 100%;
+      min-width: 0;
+      background: var(--bg);
+      color: var(--text-primary);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 0.38rem 0.45rem;
+      font: inherit;
+      font-size: 0.72rem;
+    }
+
+    .custom-range-apply {
+      background: var(--accent);
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.42rem 0.62rem;
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    .custom-range-apply:hover {
+      filter: brightness(1.05);
+    }
+
+    .custom-range-note {
+      margin-top: 0.42rem;
+      font-size: 0.68rem;
+      color: var(--text-secondary);
+      text-align: right;
+    }
+
+    .custom-range-summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.4rem 0.52rem;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      background: rgba(59,130,246,0.07);
+      font-size: 0.72rem;
+    }
+
+    .custom-range-summary span {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .custom-range-edit-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.68rem;
+      color: var(--text-secondary);
+      font-family: inherit;
+      padding: 2px 6px;
+      border-radius: 5px;
+      transition: color 0.15s;
+    }
+
+    .custom-range-edit-btn:hover { color: var(--accent); }
+
+    /* ── 52-week bar ── */
+    .week52-row {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      margin-bottom: 0.55rem;
+    }
+
+    .week52-label {
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      min-width: 2.8rem;
+    }
+
+    .week52-bar-wrap {
+      flex: 1;
+      height: 4px;
+      background: var(--card-border);
+      border-radius: 2px;
+      position: relative;
+    }
+
+    .week52-bar-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.4s ease;
+    }
+
+    .week52-dot {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--card-bg);
+    }
+
+    /* ── Shares / P&L ── */
+    .shares-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-bottom: 0.45rem;
+      flex-wrap: wrap;
+    }
+
+    .shares-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+    }
+
+    .shares-input {
+      width: 72px;
+      background: var(--bg);
+      color: var(--text-primary);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 3px 7px;
+      font: inherit;
+      font-size: 0.72rem;
+    }
+
+    .shares-input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+    .shares-pnl {
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .shares-pnl.up   { color: var(--green); }
+    .shares-pnl.down { color: var(--red); }
+    .shares-pnl.flat { color: var(--text-secondary); }
+
+    .price {
+      font-size: 1.75rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 0.3rem;
+    }
+
+    .price-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.28rem;
+      flex-wrap: wrap;
+    }
+
+    .currency-code {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .range-change {
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .range-change.up   { color: var(--green); }
+    .range-change.down { color: var(--red); }
+    .range-change.flat { color: var(--text-secondary); }
+
+    /* ── Range tabs ── */
+    .range-tabs {
+      display: flex;
+      gap: 2px;
+      margin-bottom: 0.6rem;
+    }
+
+    .rtab {
+      flex: 1;
+      padding: 4px 0;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 0.68rem;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+      font-family: inherit;
+      letter-spacing: 0.01em;
+    }
+
+    .rtab:hover {
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .rtab.active {
+      color: var(--accent);
+      background: rgba(59,130,246,0.12);
+      font-weight: 700;
+    }
+
+    /* ── Sparkline layout: absolute positioning, no grid ── */
+    .sparkline-wrap {
+      position: relative;
+      height: 130px;
+      overflow: hidden;
+    }
+
+    /* Y-axis label column: left strip, 38px wide, top 112px */
+    .chart-y-axis {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 38px;
+      height: 112px;
+    }
+
+    .chart-y-axis .y-label {
+      position: absolute;
+      right: 4px;
+      font-size: 8px;
+      color: #8892a4;
+      font-family: system-ui, sans-serif;
+      transform: translateY(-50%);
+      white-space: nowrap;
+      line-height: 1;
+    }
+
+    /* Chart SVG area: right of y-axis, top 112px */
+    .chart-svg-container {
+      position: absolute;
+      top: 0;
+      left: 38px;
+      right: 0;
+      height: 112px;
+      cursor: crosshair;
+      overflow: hidden;
+    }
+
+    .chart-svg-container svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* X-axis label row: right of y-axis, bottom 18px */
+    .chart-x-axis {
+      position: absolute;
+      bottom: 0;
+      left: 38px;
+      right: 0;
+      height: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-top: 3px;
+      overflow: hidden;
+    }
+
+    .chart-x-axis .x-label {
+      font-size: 8px;
+      color: #8892a4;
+      font-family: system-ui, sans-serif;
+      white-space: nowrap;
+    }
+
+    /* Crosshair dot: HTML div so it stays a perfect circle at any card width */
+    .chart-dot {
+      position: absolute;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      display: none;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .spark-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+    }
+
+    .spark-loading::after { content: 'Loading chart…'; }
+
+    .spark-nodata {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      font-size: 0.73rem;
+    }
+
+    /* Hover tooltip — lives inside .chart-svg-container */
+    .chart-tooltip {
+      position: absolute;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 5px 9px;
+      font-size: 0.72rem;
+      color: var(--text-primary);
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 10;
+      display: none;
+      box-shadow: var(--surface-shadow-soft);
+      overflow: visible;
+    }
+
+    .chart-tooltip .tt-price {
+      font-weight: 700;
+      font-size: 0.82rem;
+      color: var(--text-primary);
+    }
+
+    .chart-tooltip .tt-date {
+      color: var(--text-secondary);
+      margin-top: 1px;
+    }
+
+    .chart-tooltip .tt-currency {
+      color: var(--text-secondary);
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-left: 0.18rem;
+    }
+
+    /* ── Skeleton ── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--skeleton-a) 25%, var(--skeleton-b) 50%, var(--skeleton-a) 75%);
+      background-size: 400% 100%;
+      animation: shimmer 1.4s ease-in-out infinite;
+      border-radius: 4px;
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: 100% 0; }
+      100% { background-position: -100% 0; }
+    }
+
+    .sk-symbol { width: 55px;  height: 18px; margin-bottom: 6px; }
+    .sk-name   { width: 120px; height: 12px; margin-bottom: 14px; }
+    .sk-price  { width: 110px; height: 28px; margin-bottom: 8px; }
+    .sk-change { width: 80px;  height: 14px; margin-bottom: 10px; }
+    .sk-tabs   { width: 100%;  height: 22px; margin-bottom: 8px; border-radius: 4px; }
+    .sk-spark  { position: absolute; inset: 0; border-radius: 4px; }
+
+    /* ── Error card ── */
+    .error-label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.5rem;
+      line-height: 1.5;
+    }
+
+    .retry-btn {
+      margin-top: 0.6rem;
+      font-size: 0.78rem;
+      padding: 4px 10px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--accent);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .retry-btn:hover { border-color: var(--accent); }
+
+    .retry-countdown {
+      font-size: 0.73rem;
+      color: var(--text-secondary);
+      margin-top: 0.35rem;
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 5rem 2rem;
+      color: var(--text-secondary);
+    }
+
+    .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+    .empty-state h2 { font-size: 1.1rem; margin-bottom: 0.4rem; color: var(--text-primary); }
+    .empty-state p  { font-size: 0.875rem; }
+
+    /* ── Suggestions ── */
+    .suggestions {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.75rem;
+    }
+
+    .suggestion-chip {
+      font-size: 0.78rem;
+      padding: 3px 10px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .suggestion-chip:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: var(--toast-bg);
+      border: 1px solid var(--card-border);
+      border-left: 3px solid var(--accent);
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      color: var(--text-primary);
+      z-index: 999;
+      max-width: 300px;
+      animation: toastIn 0.25s ease;
+      box-shadow: var(--surface-shadow-soft);
+    }
+
+    .toast.error  { border-left-color: var(--red); }
+    .toast.success { border-left-color: var(--green); }
+
+    @keyframes toastIn {
+      from { transform: translateY(16px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      main   { padding: 1rem; }
+      header { padding: 1rem; }
+      .price { font-size: 1.5rem; }
+      /* On small screens, cap at 2 cols regardless of picker */
+      .stock-grid.cols-3,
+      .stock-grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 400px) {
+      .stock-grid,
+      .stock-grid.cols-2,
+      .stock-grid.cols-3,
+      .stock-grid.cols-4 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+      <polyline points="16 7 22 7 22 13"></polyline>
+    </svg>
+    Stock Dashboard
+  </div>
+  <div class="header-right">
+    <label class="theme-toggle" for="themeToggle" title="Toggle light and dark mode">
+      <span>Theme</span>
+      <input type="checkbox" id="themeToggle" aria-label="Toggle light and dark mode" />
+      <span class="theme-toggle-track">
+        <span class="theme-toggle-icon moon">🌙</span>
+        <span class="theme-toggle-icon sun">☀</span>
+        <span class="theme-toggle-thumb"></span>
+      </span>
+    </label>
+    <div class="market-pill closed" id="marketPill">
+      <span class="dot"></span>
+      <span id="marketLabel">Checking…</span>
+    </div>
+    <span class="last-updated" id="lastUpdated">—</span>
+  </div>
+</header>
+
+<!-- Help panel -->
+<div class="help-backdrop" id="helpBackdrop" onclick="toggleHelp()"></div>
+<aside class="help-panel" id="helpPanel" aria-label="Dashboard help">
+  <div class="help-header">
+    <span class="help-title">How to use</span>
+    <button class="help-close" onclick="toggleHelp()" aria-label="Close help">✕</button>
+  </div>
+  <div class="help-body">
+
+    <div class="help-section">
+      <div class="help-section-title">💲 Price &amp; currency</div>
+      <p>The large number is the latest market price. The small code next to it (e.g. <strong>USD</strong>, <strong>CAD</strong>) is the trading currency. Hover the chart to see the exact price at any point in time.</p>
+    </div>
+
+    <div class="help-section">
+      <div class="help-section-title">📊 52-week bar (L &amp; H)</div>
+      <p>The thin bar below the price shows where today's price sits within the last 52 weeks. <strong>L $xxx</strong> is the yearly low (left end), <strong>H $xxx</strong> is the yearly high (right end). The blue dot marks today's price. Hover the bar for a full summary.</p>
+    </div>
+
+    <div class="help-section">
+      <div class="help-section-title">▲▼ Change arrow</div>
+      <p>Green ▲ means the price is up vs. the previous close; red ▼ means it's down. The dollar and percentage shown are the size of that move. For non-1D ranges the change is from the first to the last data point in the selected window.</p>
+    </div>
+
+    <div class="help-section">
+      <div class="help-section-title">📅 Range tabs — 1D · 5D · 1M · 6M · YTD · 1Y · 5Y · Max</div>
+      <p>Switch the chart window for that card. <strong>1D</strong> shows today's intraday price in 2-minute snapshots. Wider ranges use daily or weekly data points. Your choice is remembered per stock across reloads.</p>
+    </div>
+
+    <div class="help-section">
+      <div class="help-section-title">🔍 Custom date range</div>
+      <p>Click <strong>Custom</strong> on any card, pick a From and To date, then hit <strong>Apply</strong>. The chart redraws for exactly that window and the panel collapses to a tidy summary. Click <strong>Edit</strong> to change the dates, or click <strong>Custom</strong> again to close the panel and go back to a preset tab.</p>
+    </div>
+
+    <div class="help-section">
+      <div class="help-section-title">🧾 Shares &amp; P&amp;L</div>
+      <p>Type how many shares you hold in the <strong>Shares</strong> field. The dashboard shows your total position value (shares × current price) and today's gain/loss (shares × today's price change). Saved automatically.</p>
+    </div>
+
+    <div class="help-section">
+      <div class="help-section-title">☰ Drag to reorder</div>
+      <p>Grab the <strong>⠿</strong> dots icon in the top-right of any card and drag it on top of another card to swap their order. The new order is saved automatically.</p>
+    </div>
+
+    <div class="help-section">
+      <div class="help-section-title">⌨️ Keyboard shortcuts</div>
+      <p><kbd>/</kbd> — focus the symbol search box<br><kbd>R</kbd> — refresh all cards now<br>(Both are disabled while you're typing in a field.)</p>
+    </div>
+
+    <div class="help-section">
+      <div class="help-section-title">➕ Adding &amp; removing stocks</div>
+      <p>Type a ticker (e.g. <strong>AAPL</strong>, <strong>BTC-USD</strong>, <strong>BMO.TO</strong>) in the search box and pick from the live suggestions, or press Enter. Invalid tickers are rejected with an error message. Hit <strong>✕</strong> on a card to remove it.</p>
+    </div>
+
+  </div>
+</aside>
+
+<main>
+  <div class="add-bar">
+    <input
+      type="text"
+      id="symbolInput"
+      placeholder="Add symbol — e.g. AAPL, MSFT, BTC-USD"
+      autocomplete="off"
+      autocapitalize="characters"
+      spellcheck="false"
+    />
+    <button class="btn" id="addBtn">+ Add</button>
+    <div class="autocomplete-menu" id="autocompleteMenu"></div>
+  </div>
+
+  <div class="suggestions" id="suggestions"></div>
+
+  <div class="toolbar">
+    <span class="stock-count" id="stockCount"></span>
+    <div class="toolbar-right">
+      <div class="col-picker" title="Columns">
+        <button class="col-btn" data-cols="1" onclick="setCols(1)">1</button>
+        <button class="col-btn" data-cols="2" onclick="setCols(2)">2</button>
+        <button class="col-btn" data-cols="3" onclick="setCols(3)">3</button>
+        <button class="col-btn" data-cols="4" onclick="setCols(4)">4</button>
+        <button class="col-btn" data-cols="0" onclick="setCols(0)" title="Auto">Auto</button>
+      </div>
+      <span class="refresh-badge" id="countdown">—</span>
+      <button class="btn btn-ghost" id="refreshBtn">↻ Refresh</button>
+      <button class="help-btn" id="helpBtn" title="How to use this dashboard" aria-label="Help" onclick="toggleHelp()">?</button>
+    </div>
+  </div>
+
+  <div class="stock-grid" id="stockGrid"></div>
+</main>
+
+<script>
+  // ── Config ──────────────────────────────────────────────────────────────────
+  const REFRESH_INTERVAL  = 60;
+  const CORS_PROXIES      = [
+    'https://api.allorigins.win/raw?url=',
+    'https://corsproxy.io/?',
+  ];
+  const CORS_PROXY        = CORS_PROXIES[0]; // kept for autocomplete (low-latency path)
+  const STORAGE_KEY       = 'stockDash_v1_symbols';
+  const RANGE_KEY         = 'stockDash_v1_ranges';
+  const CUSTOM_RANGE_KEY  = 'stockDash_v1_custom_ranges';
+  const SHARES_KEY        = 'stockDash_v1_shares';
+  const COLS_KEY          = 'stockDash_v1_cols';
+  const THEME_KEY         = 'stockDash_v1_theme';
+  const FETCH_STAGGER_MS  = 300;
+  const RETRY_DELAYS      = [8, 20, 45];
+  const DEFAULT_RANGE     = '1D';
+
+  const POPULAR         = ['AAPL','MSFT','GOOGL','AMZN','TSLA','NVDA','META','BTC-USD','ETH-USD'];
+  const DEFAULT_SYMBOLS = ['AAPL','MSFT','GOOGL','TSLA'];
+
+  const RANGES = [
+    { label: '1D',  interval: '2m',  range: '1d'  },
+    { label: '5D',  interval: '15m', range: '5d'  },
+    { label: '1M',  interval: '1d',  range: '1mo' },
+    { label: '6M',  interval: '1d',  range: '6mo' },
+    { label: 'YTD', interval: '1d',  range: 'ytd' },
+    { label: '1Y',  interval: '1d',  range: '1y'  },
+    { label: '5Y',  interval: '1wk', range: '5y'  },
+    { label: 'Max', interval: '1mo', range: 'max' },
+  ];
+
+  // ── State ───────────────────────────────────────────────────────────────────
+  let symbols    = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') ?? [...DEFAULT_SYMBOLS];
+  let symRanges  = JSON.parse(localStorage.getItem(RANGE_KEY)   || '{}');
+  let customRanges = JSON.parse(localStorage.getItem(CUSTOM_RANGE_KEY) || '{}');
+  let colCount   = parseInt(localStorage.getItem(COLS_KEY) || '0', 10); // 0 = auto
+  let theme      = localStorage.getItem(THEME_KEY) || 'dark';
+  let data       = {}; // sym -> stock meta object
+  let chartCache = {}; // sym -> { rangeLabel -> { closes[] } }
+  let cdValue    = REFRESH_INTERVAL;
+  let cdTimer    = null;
+  let fetching   = false;
+  let resizeRedrawTimer = null;
+  let autocompleteItems = [];
+  let autocompleteIndex = -1;
+  let pendingSymbols = new Set();
+  let customEditors = {};
+  let sharesData = JSON.parse(localStorage.getItem(SHARES_KEY) || '{}');
+
+  // ── Boot ────────────────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    buildSuggestions();
+    updateMarketStatus();
+    applyTheme(theme);
+
+    document.getElementById('symbolInput').addEventListener('keydown', e => {
+      if (handleAutocompleteKeydown(e)) return;
+      if (e.key === 'Enter') handleAdd();
+    });
+    document.getElementById('symbolInput').addEventListener('input', updateAutocomplete);
+    document.getElementById('symbolInput').addEventListener('focus', updateAutocomplete);
+    document.getElementById('symbolInput').addEventListener('blur', () => {
+      setTimeout(closeAutocomplete, 120);
+    });
+    document.getElementById('addBtn').addEventListener('click', handleAdd);
+    document.getElementById('refreshBtn').addEventListener('click', () => refreshAll());
+    document.getElementById('themeToggle').addEventListener('change', toggleTheme);
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeRedrawTimer);
+      resizeRedrawTimer = setTimeout(redrawAllCharts, 80);
+    });
+
+    // ── Global keyboard shortcuts ──
+    document.addEventListener('keydown', e => {
+      const tag = document.activeElement?.tagName;
+      const isEditing = tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable;
+      if (e.key === '/' && !isEditing) {
+        e.preventDefault();
+        document.getElementById('symbolInput')?.focus();
+      }
+      if ((e.key === 'r' || e.key === 'R') && !isEditing && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        refreshAll();
+      }
+    });
+
+    renderSkeletons();
+    refreshAll();
+    startCountdown();
+    applyColCount(colCount, false);
+    document.getElementById('countdown').textContent = 'Loading…';
+  });
+
+  // ── Suggestions ─────────────────────────────────────────────────────────────
+  function buildSuggestions() {
+    const wrap = document.getElementById('suggestions');
+    const chips = POPULAR
+      .filter(s => !symbols.includes(s))
+      .map(s => `<button class="suggestion-chip" data-sym="${esc(s)}">${esc(s)}</button>`)
+      .join('');
+    wrap.innerHTML = chips
+      ? '<span style="font-size:0.75rem;color:var(--text-secondary);align-self:center;">Quick add:</span>' + chips
+      : '';
+    wrap.querySelectorAll('.suggestion-chip').forEach(btn => {
+      btn.addEventListener('click', () => addSymbol(btn.dataset.sym));
+    });
+    updateAutocomplete();
+  }
+
+  let acDebounceTimer = null;
+  let acRequestId = 0; // guard against stale responses
+
+  async function fetchAutocompleteSuggestions(query) {
+    const normalized = query.trim();
+    if (!normalized) return [];
+    try {
+      const url     = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(normalized)}&quotesCount=8&newsCount=0&enableFuzzyQuery=false&quotesQueryId=tss_match_phrase_query`;
+      const proxied = CORS_PROXY + encodeURIComponent(url);
+      const res     = await fetch(proxied, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return [];
+      const json    = await res.json();
+      const quotes  = json?.quotes ?? [];
+      return quotes
+        .filter(q => q.symbol && q.quoteType && !symbols.includes(q.symbol))
+        .slice(0, 8)
+        .map(q => ({
+          sym:      q.symbol,
+          name:     q.longname || q.shortname || '',
+          exchange: q.exchDisp || q.exchange || '',
+          type:     q.typeDisp || q.quoteType || '',
+        }));
+    } catch {
+      return [];
+    }
+  }
+
+  function renderAutocomplete(items) {
+    const menu = document.getElementById('autocompleteMenu');
+    if (!menu) return;
+    // items is array of {sym, name, exchange, type} OR plain strings (legacy)
+    const normalized = items.map(i => typeof i === 'string' ? { sym: i, name: '', exchange: '', type: '' } : i);
+    autocompleteItems = normalized.map(i => i.sym);
+    autocompleteIndex = normalized.length ? 0 : -1;
+    if (!normalized.length) {
+      menu.innerHTML = '';
+      menu.classList.remove('open');
+      return;
+    }
+
+    menu.innerHTML = normalized.map((item, index) => `
+      <button class="autocomplete-item${index === autocompleteIndex ? ' active' : ''}" data-sym="${esc(item.sym)}" type="button">
+        <span class="autocomplete-item-symbol">${esc(item.sym)}</span>
+        <span class="autocomplete-item-meta">${item.name ? esc(item.name) + (item.exchange ? ' · ' + esc(item.exchange) : '') : esc(item.exchange || item.type)}</span>
+      </button>`).join('');
+    menu.classList.add('open');
+    menu.querySelectorAll('.autocomplete-item').forEach(btn => {
+      btn.addEventListener('mousedown', e => {
+        e.preventDefault();
+        applyAutocompleteSelection(btn.dataset.sym);
+      });
+    });
+  }
+
+  function updateAutocomplete() {
+    const input = document.getElementById('symbolInput');
+    if (!input) return;
+    const query = input.value.trim();
+    clearTimeout(acDebounceTimer);
+    if (!query) { closeAutocomplete(); return; }
+    const thisId = ++acRequestId;
+    acDebounceTimer = setTimeout(async () => {
+      const items = await fetchAutocompleteSuggestions(query);
+      if (thisId !== acRequestId) return; // stale — a newer request fired
+      renderAutocomplete(items);
+    }, 250);
+  }
+
+  function closeAutocomplete() {
+    const menu = document.getElementById('autocompleteMenu');
+    if (!menu) return;
+    menu.classList.remove('open');
+    menu.innerHTML = '';
+    autocompleteItems = [];
+    autocompleteIndex = -1;
+  }
+
+  function applyAutocompleteSelection(sym) {
+    const input = document.getElementById('symbolInput');
+    if (!input) return;
+    input.value = sym;
+    closeAutocomplete();
+    input.focus();
+  }
+
+  function handleAutocompleteKeydown(e) {
+    if (!autocompleteItems.length) return false;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      autocompleteIndex = (autocompleteIndex + 1) % autocompleteItems.length;
+      syncAutocompleteActive();
+      return true;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      autocompleteIndex = (autocompleteIndex - 1 + autocompleteItems.length) % autocompleteItems.length;
+      syncAutocompleteActive();
+      return true;
+    }
+    if (e.key === 'Tab' || e.key === 'Enter') {
+      if (autocompleteIndex >= 0 && autocompleteItems[autocompleteIndex]) {
+        e.preventDefault();
+        applyAutocompleteSelection(autocompleteItems[autocompleteIndex]);
+        if (e.key === 'Enter') handleAdd();
+        return true;
+      }
+    }
+    if (e.key === 'Escape') {
+      closeAutocomplete();
+      return true;
+    }
+    return false;
+  }
+
+  function syncAutocompleteActive() {
+    const menu = document.getElementById('autocompleteMenu');
+    if (!menu) return;
+    menu.querySelectorAll('.autocomplete-item').forEach((item, index) => {
+      item.classList.toggle('active', index === autocompleteIndex);
+    });
+  }
+
+  // ── Market status ────────────────────────────────────────────────────────────
+  function updateMarketStatus() {
+    const now   = new Date();
+    const day   = now.getUTCDay();
+    const mins  = now.getUTCHours() * 60 + now.getUTCMinutes();
+    // NYSE: Mon–Fri 13:30–20:00 UTC (EDT, UTC-4)
+    const open  = day >= 1 && day <= 5 && mins >= 13 * 60 + 30 && mins < 20 * 60;
+    const pill  = document.getElementById('marketPill');
+    pill.className = 'market-pill' + (open ? '' : ' closed');
+    document.getElementById('marketLabel').textContent = open ? 'Market Open' : 'Market Closed';
+  }
+
+  // ── Add / Remove ─────────────────────────────────────────────────────────────
+  function handleAdd() {
+    const input = document.getElementById('symbolInput');
+    const raw   = input.value.trim().toUpperCase().replace(/[^A-Z0-9.\-^]/g, '');
+    input.value = '';
+    closeAutocomplete();
+    if (!raw) return;
+    addSymbol(raw);
+  }
+
+  async function addSymbol(sym) {
+    if (symbols.includes(sym) || pendingSymbols.has(sym)) { toast(`${sym} is already on your watchlist`, 'error'); return; }
+    pendingSymbols.add(sym);
+    ensureEmptyGone();
+    appendSkeletonCard(sym);
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    const verified = await fetchStock(sym);
+    if (!verified || data[sym]?.error) {
+      pendingSymbols.delete(sym);
+      delete data[sym];
+      delete chartCache[sym];
+      document.getElementById('card-' + sym)?.remove();
+      checkEmpty();
+      toast(`${sym} was not found. Check the ticker and try again.`, 'error');
+      return;
+    }
+
+    pendingSymbols.delete(sym);
+    symbols.push(sym);
+    persist();
+    persistRanges();
+    buildSuggestions();
+    updateCount();
+    replaceCard(sym);
+    toast(`${sym} added`, 'success');
+  }
+
+  function removeStock(sym) {
+    cancelRetry(sym);
+    symbols = symbols.filter(s => s !== sym);
+    delete data[sym];
+    delete chartCache[sym];
+    delete symRanges[sym];
+    delete customRanges[sym];
+    delete customEditors[sym];
+    delete sharesData[sym];
+    persist();
+    persistRanges();
+    persistCustomRanges();
+    persistShares();
+    buildSuggestions();
+    const el = document.getElementById('card-' + sym);
+    if (el) {
+      el.style.transition = 'opacity .2s, transform .2s';
+      el.style.opacity    = '0';
+      el.style.transform  = 'scale(0.95)';
+      setTimeout(() => { el.remove(); updateCount(); checkEmpty(); }, 210);
+    }
+  }
+
+  // ── Fetch ────────────────────────────────────────────────────────────────────
+  async function fetchWithFallback(targetUrl) {
+    let lastErr;
+    for (const proxy of CORS_PROXIES) {
+      try {
+        const res = await fetch(proxy + encodeURIComponent(targetUrl), { signal: AbortSignal.timeout(12000) });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr;
+  }
+
+  async function fetchYahooChart(sym, interval, range) {
+    const url  = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=${interval}&range=${range}`;
+    const json = await fetchWithFallback(url);
+    const result = json?.chart?.result?.[0];
+    const fetchError = json?.chart?.error;
+    if (!result || fetchError) throw new Error(fetchError?.description || 'No data returned');
+    const rawClose  = result.indicators?.quote?.[0]?.close ?? [];
+    const closes    = rawClose.filter(v => v != null && isFinite(v));
+    return {
+      result,
+      meta: result.meta,
+      closes,
+      timestamps: result.timestamp ?? []
+    };
+  }
+
+  async function fetchStock(sym) {
+    // Fetches meta + 1D intraday chart on initial/refresh load
+    const rng = RANGES.find(r => r.label === '1D');
+    try {
+      let chart;
+      let usedFallbackRange = false;
+
+      try {
+        chart = await fetchYahooChart(sym, rng.interval, rng.range);
+      } catch {
+        chart = await fetchYahooChart(sym, '1d', '1mo');
+        usedFallbackRange = true;
+      }
+
+      const meta     = chart.meta;
+      const closes   = chart.closes;
+
+      if (!chartCache[sym]) chartCache[sym] = {};
+      chartCache[sym][usedFallbackRange ? '1M' : '1D'] = { closes, timestamps: chart.timestamps };
+      if (usedFallbackRange && (!symRanges[sym] || symRanges[sym] === '1D')) {
+        symRanges[sym] = '1M';
+      }
+
+      const price     = meta.regularMarketPrice ?? closes.at(-1);
+      const prev      = meta.chartPreviousClose ?? meta.previousClose;
+      const change    = (price != null && prev != null) ? price - prev : null;
+      const changePct = change != null ? (change / prev) * 100 : null;
+
+      data[sym] = {
+        symbol: sym,
+        name: meta.longName || meta.shortName || sym,
+        price, prev, change, changePct,
+        currency: meta.currency || 'USD',
+        week52High: meta.fiftyTwoWeekHigh ?? null,
+        week52Low:  meta.fiftyTwoWeekLow  ?? null,
+        error: false,
+        retryAttempt: 0
+      };
+      return true;
+    } catch (err) {
+      console.warn(`[${sym}]`, err);
+      const prev = data[sym];
+      data[sym] = { symbol: sym, error: true, retryAttempt: (prev?.retryAttempt ?? 0) };
+      return false;
+    }
+  }
+
+  function persistCustomRanges() {
+    localStorage.setItem(CUSTOM_RANGE_KEY, JSON.stringify(customRanges));
+  }
+
+  function persistShares() {
+    localStorage.setItem(SHARES_KEY, JSON.stringify(sharesData));
+  }
+
+  function setShares(sym, value) {
+    const n = parseFloat(value);
+    if (!isNaN(n) && n > 0) {
+      sharesData[sym] = n;
+    } else {
+      delete sharesData[sym];
+    }
+    persistShares();
+    // Update just the P&L display without a full card rebuild
+    const d = data[sym];
+    const pnlEl = document.getElementById('pnl-' + sym);
+    if (!pnlEl || !d || d.error) return;
+    pnlEl.outerHTML = buildPnlHTML(sym);
+  }
+
+  function isCustomRangeLabel(rangeLabel = '') {
+    return typeof rangeLabel === 'string' && rangeLabel.startsWith('custom:');
+  }
+
+  function buildCustomRangeKey(start, end) {
+    return `custom:${start}:${end}`;
+  }
+
+  function parseCustomRangeKey(rangeLabel = '') {
+    if (!isCustomRangeLabel(rangeLabel)) return null;
+    const [, start = '', end = ''] = rangeLabel.split(':');
+    if (!start || !end) return null;
+    return { start, end };
+  }
+
+  function getTodayInputValue() {
+    const today = new Date();
+    const offset = today.getTimezoneOffset();
+    const local = new Date(today.getTime() - offset * 60000);
+    return local.toISOString().slice(0, 10);
+  }
+
+  function shiftDateInputValue(value, days) {
+    const base = new Date(`${value}T00:00:00`);
+    base.setDate(base.getDate() + days);
+    return base.toISOString().slice(0, 10);
+  }
+
+  function getStoredCustomRange(sym) {
+    const stored = customRanges[sym];
+    if (stored?.start && stored?.end) return stored;
+    const end = getTodayInputValue();
+    return { start: shiftDateInputValue(end, -30), end };
+  }
+
+  function chooseCustomInterval(start, end) {
+    const startMs = new Date(`${start}T00:00:00`).getTime();
+    const endMs = new Date(`${end}T00:00:00`).getTime();
+    const spanDays = Math.max(1, Math.ceil((endMs - startMs) / 86400000));
+    if (spanDays <= 90) return '1d';
+    if (spanDays <= 730) return '1wk';
+    return '1mo';
+  }
+
+  async function fetchYahooChartCustom(sym, start, end) {
+    const startMs = Math.floor(new Date(`${start}T00:00:00`).getTime() / 1000);
+    const endExclusiveMs = Math.floor(new Date(`${end}T00:00:00`).getTime() / 1000) + 86400;
+    const interval = chooseCustomInterval(start, end);
+    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?period1=${startMs}&period2=${endExclusiveMs}&interval=${interval}&includePrePost=false&events=div%2Csplits`;
+    const json = await fetchWithFallback(url);
+    const result = json?.chart?.result?.[0];
+    const fetchError = json?.chart?.error;
+    if (!result || fetchError) throw new Error(fetchError?.description || 'No data returned');
+    const rawClose = result.indicators?.quote?.[0]?.close ?? [];
+    const closes = rawClose.filter(v => v != null && isFinite(v));
+    return { result, meta: result.meta, closes, timestamps: result.timestamp ?? [] };
+  }
+
+  function getRangeDisplayLabel(rangeLabel) {
+    if (!isCustomRangeLabel(rangeLabel)) return rangeLabel;
+    const parsed = parseCustomRangeKey(rangeLabel);
+    if (!parsed) return 'Custom';
+    const start = new Date(`${parsed.start}T00:00:00`);
+    const end = new Date(`${parsed.end}T00:00:00`);
+    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} to ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  }
+
+  async function fetchChartRange(sym, rangeLabel) {
+    if (chartCache[sym]?.[rangeLabel]) return chartCache[sym][rangeLabel];
+    const custom = parseCustomRangeKey(rangeLabel);
+    if (custom) {
+      try {
+        const chart = await fetchYahooChartCustom(sym, custom.start, custom.end);
+        if (!chartCache[sym]) chartCache[sym] = {};
+        chartCache[sym][rangeLabel] = { closes: chart.closes, timestamps: chart.timestamps };
+        return chartCache[sym][rangeLabel];
+      } catch (err) {
+        console.warn(`[${sym}] custom range ${rangeLabel}`, err);
+        return null;
+      }
+    }
+    const rng = RANGES.find(r => r.label === rangeLabel);
+    if (!rng) return null;
+    try {
+      const chart = await fetchYahooChart(sym, rng.interval, rng.range);
+      if (!chartCache[sym]) chartCache[sym] = {};
+      chartCache[sym][rangeLabel] = { closes: chart.closes, timestamps: chart.timestamps };
+      return chartCache[sym][rangeLabel];
+    } catch (err) {
+      console.warn(`[${sym}] range ${rangeLabel}`, err);
+      return null;
+    }
+  }
+
+  // Stagger fetches to avoid rate-limiting the CORS proxy on initial load
+  async function fetchAllStaggered(syms) {
+    for (let i = 0; i < syms.length; i++) {
+      if (i > 0) await delay(FETCH_STAGGER_MS);
+      await fetchStock(syms[i]);
+    }
+  }
+
+  async function refreshAll(silent = false) {
+    if (fetching) return;
+    fetching = true;
+    chartCache = {}; // Clear chart cache on full refresh
+
+    const btn = document.getElementById('refreshBtn');
+    btn.disabled = true;
+    btn.textContent = '↻ …';
+
+    if (!silent) renderSkeletons();
+
+    await fetchAllStaggered(symbols);
+
+    renderAllCards();
+
+    // For symbols with a non-1D active range, fetch their chart data silently
+    symbols.forEach(sym => {
+      const active = symRanges[sym] ?? DEFAULT_RANGE;
+      if (active !== '1D' && data[sym] && !data[sym].error) {
+        fetchChartRange(sym, active).then(chart => {
+          updateRangeChange(sym, active, chart);
+          if (chart?.closes?.length >= 2) drawSparklineFromData(sym, chart.closes, chart.timestamps ?? []);
+        });
+      }
+    });
+
+    // Auto-retry any cards that failed
+    const failed = symbols.filter(s => data[s]?.error);
+    failed.forEach(s => scheduleRetry(s));
+
+    document.getElementById('lastUpdated').textContent =
+      'Updated ' + new Date().toLocaleTimeString();
+
+    fetching  = false;
+    btn.disabled = false;
+    btn.textContent = '↻ Refresh';
+    cdValue   = REFRESH_INTERVAL;
+    updateMarketStatus();
+  }
+
+  // ── Range selection ──────────────────────────────────────────────────────────
+  async function selectRange(sym, rangeLabel) {
+    if (!symbols.includes(sym) || !data[sym] || data[sym].error) return;
+    symRanges[sym] = rangeLabel;
+    persistRanges();
+
+    // Update tab highlights immediately
+    const tabsEl = document.getElementById('rtabs-' + sym);
+    if (tabsEl) {
+      tabsEl.querySelectorAll('.rtab').forEach(btn =>
+        btn.classList.toggle('active', btn.dataset.range === rangeLabel)
+      );
+    }
+
+    const customToggle = document.getElementById('customToggle-' + sym);
+    if (customToggle) {
+      customToggle.classList.toggle('active', isCustomRangeLabel(rangeLabel));
+    }
+
+    const customPanel = document.getElementById('customPanel-' + sym);
+    if (customPanel) {
+      const open = !!customEditors[sym] || isCustomRangeLabel(rangeLabel);
+      customPanel.classList.toggle('open', open);
+    }
+
+    // Show loading indicator only if not already cached
+    const sparkEl = document.getElementById('spark-' + sym);
+    if (sparkEl && !chartCache[sym]?.[rangeLabel]) {
+      sparkEl.innerHTML = '<div class="spark-loading"></div>';
+    }
+
+    const chart = await fetchChartRange(sym, rangeLabel);
+    updateRangeChange(sym, rangeLabel, chart);
+
+    if (chart?.closes?.length >= 2) {
+      drawSparklineFromData(sym, chart.closes, chart.timestamps ?? []);
+    } else if (sparkEl) {
+      const hint = isCustomRangeLabel(rangeLabel)
+        ? 'No trading data in this date range. Markets may have been closed or the dates are in the future.'
+        : 'No data available for this range';
+      sparkEl.innerHTML = `<div class="spark-nodata">${hint}</div>`;
+    }
+  }
+
+  function updateRangeChange(sym, rangeLabel, chart) {
+    const d  = data[sym];
+    const el = document.getElementById('rchange-' + sym);
+    if (!d || d.error || !el) return;
+
+    let change, changePct, label;
+
+    if (rangeLabel === '1D') {
+      change    = d.change;
+      changePct = d.changePct;
+      label     = 'Today';
+    } else if (chart?.closes?.length >= 2) {
+      const start = chart.closes[0];
+      // For custom (historical) ranges use the last close in that window, not today's price
+      const end   = isCustomRangeLabel(rangeLabel) ? chart.closes.at(-1) : (d.price ?? chart.closes.at(-1));
+      change    = end - start;
+      changePct = (change / start) * 100;
+      label     = getRangeDisplayLabel(rangeLabel);
+    } else {
+      el.textContent = '—';
+      el.className   = 'range-change flat';
+      return;
+    }
+
+    const isFlat = change == null;
+    const isUp   = (change ?? 0) >= 0;
+    const cls    = isFlat ? 'flat' : isUp ? 'up' : 'down';
+    const arrow  = isFlat ? '' : isUp ? '▲ ' : '▼ ';
+    const sign   = (change ?? 0) >= 0 ? '+' : '';
+
+    el.textContent = change != null
+      ? `${arrow}${sign}${fmtCurrency(Math.abs(change), d.currency)} (${sign}${changePct.toFixed(2)}%) ${label}`
+      : '—';
+    el.className = `range-change ${cls}`;
+  }
+
+  // ── Retry logic ──────────────────────────────────────────────────────────────
+  const retryTimers = {}; // sym -> { timerId, secsLeft }
+
+  function scheduleRetry(sym) {
+    const attempt = data[sym]?.retryAttempt ?? 0;
+    if (attempt >= RETRY_DELAYS.length) return; // max retries reached
+
+    const delaySecs = RETRY_DELAYS[attempt];
+    let secsLeft    = delaySecs;
+
+    // tick countdown on the card every second
+    const tick = setInterval(() => {
+      secsLeft--;
+      const cdEl = document.getElementById('rcd-' + sym);
+      if (cdEl) cdEl.textContent = `Retrying in ${secsLeft}s…`;
+      if (secsLeft <= 0) clearInterval(tick);
+    }, 1000);
+
+    const timerId = setTimeout(async () => {
+      clearInterval(tick);
+      delete retryTimers[sym];
+      if (!symbols.includes(sym)) return; // removed in the meantime
+      data[sym] = { symbol: sym, error: true, retryAttempt: attempt + 1 };
+      appendSkeletonCard_replace(sym);
+      await fetchStock(sym);
+      replaceCard(sym);
+      if (data[sym]?.error) scheduleRetry(sym);
+    }, delaySecs * 1000);
+
+    retryTimers[sym] = { timerId, tick };
+  }
+
+  function cancelRetry(sym) {
+    const t = retryTimers[sym];
+    if (!t) return;
+    clearTimeout(t.timerId);
+    clearInterval(t.tick);
+    delete retryTimers[sym];
+  }
+
+  async function manualRetry(sym) {
+    cancelRetry(sym);
+    if (!symbols.includes(sym)) return;
+    data[sym] = { symbol: sym, error: true, retryAttempt: 0 };
+    appendSkeletonCard_replace(sym);
+    await fetchStock(sym);
+    replaceCard(sym);
+    if (data[sym]?.error) scheduleRetry(sym);
+  }
+
+  function appendSkeletonCard_replace(sym) {
+    const old = document.getElementById('card-' + sym);
+    if (!old) return;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = buildSkeletonHTML(sym);
+    old.replaceWith(tmp.firstElementChild);
+  }
+
+  function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  // ── Countdown ────────────────────────────────────────────────────────────────
+  function startCountdown() {
+    cdTimer = setInterval(() => {
+      cdValue--;
+      const el = document.getElementById('countdown');
+      if (el) el.textContent = `Auto-refresh in ${cdValue}s`;
+      if (cdValue <= 0) {
+        cdValue = REFRESH_INTERVAL;
+        refreshAll(true);
+      }
+    }, 1000);
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+  function renderSkeletons() {
+    if (!symbols.length) { checkEmpty(); return; }
+    const grid = document.getElementById('stockGrid');
+    grid.innerHTML = symbols.map(buildSkeletonHTML).join('');
+    updateCount();
+  }
+
+  // ── Drag-to-reorder ─────────────────────────────────────────────────────────
+  let dragSym = null;
+
+  function initDrag(card) {
+    card.setAttribute('draggable', 'true');
+    card.addEventListener('dragstart', e => {
+      dragSym = card.id.replace('card-', '');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      card.classList.add('drag-over');
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      const targetSym = card.id.replace('card-', '');
+      if (!dragSym || dragSym === targetSym) return;
+      const fromIdx = symbols.indexOf(dragSym);
+      const toIdx   = symbols.indexOf(targetSym);
+      if (fromIdx < 0 || toIdx < 0) return;
+      symbols.splice(fromIdx, 1);
+      symbols.splice(toIdx, 0, dragSym);
+      persist();
+      // Physically move the DOM card instead of re-rendering everything
+      const grid    = document.getElementById('stockGrid');
+      const fromEl  = document.getElementById('card-' + dragSym);
+      const toEl    = card;
+      if (fromIdx < toIdx) {
+        toEl.after(fromEl);
+      } else {
+        toEl.before(fromEl);
+      }
+      dragSym = null;
+    });
+    card.addEventListener('dragend', () => {
+      dragSym = null;
+      document.querySelectorAll('.stock-card').forEach(c => c.classList.remove('drag-over'));
+    });
+  }
+
+  function renderAllCards() {
+    if (!symbols.length) { checkEmpty(); return; }
+    const grid = document.getElementById('stockGrid');
+    grid.innerHTML = symbols.map(buildCardHTML).join('');
+    symbols.forEach(s => {
+      if (data[s] && !data[s].error) drawSparkline(s);
+      const card = document.getElementById('card-' + s);
+      if (card) initDrag(card);
+    });
+    updateCount();
+  }
+
+  function appendSkeletonCard(sym) {
+    const grid = document.getElementById('stockGrid');
+    const div  = document.createElement('div');
+    div.innerHTML = buildSkeletonHTML(sym);
+    grid.appendChild(div.firstElementChild);
+  }
+
+  function replaceCard(sym) {
+    const old = document.getElementById('card-' + sym);
+    if (!old) return;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = buildCardHTML(sym);
+    old.replaceWith(tmp.firstElementChild);
+    const newCard = document.getElementById('card-' + sym);
+    if (newCard) initDrag(newCard);
+    if (data[sym] && !data[sym].error) {
+      requestAnimationFrame(() => {
+        const active = symRanges[sym] ?? DEFAULT_RANGE;
+        if (active !== '1D' && !chartCache[sym]?.[active]) {
+          fetchChartRange(sym, active).then(chart => {
+            updateRangeChange(sym, active, chart);
+            if (chart?.closes?.length >= 2) drawSparklineFromData(sym, chart.closes, chart.timestamps ?? []);
+          });
+        } else {
+          drawSparkline(sym);
+        }
+      });
+    }
+  }
+
+  // ── Card HTML ─────────────────────────────────────────────────────────────────
+  function buildSkeletonHTML(sym) {
+    return `<div class="stock-card loading-card" id="card-${esc(sym)}" aria-label="Loading ${esc(sym)}">
+      <div class="card-header">
+        <div>
+          <div class="skeleton sk-symbol"></div>
+          <div class="skeleton sk-name"></div>
+        </div>
+      </div>
+      <div class="skeleton sk-price"></div>
+      <div class="skeleton sk-change"></div>
+      <div class="skeleton sk-tabs"></div>
+      <div class="sparkline-wrap"><div class="skeleton sk-spark"></div></div>
+    </div>`;
+  }
+
+  function buildWeek52HTML(sym) {
+    const d = data[sym];
+    if (!d || d.error || d.week52Low == null || d.week52High == null || d.price == null) return '';
+    const lo = d.week52Low, hi = d.week52High, price = d.price;
+    const range = hi - lo || 1;
+    const pct = Math.max(0, Math.min(100, ((price - lo) / range) * 100));
+    const tooltip = `52-week range: low ${fmtCurrency(lo, d.currency)} – high ${fmtCurrency(hi, d.currency)}. Today is at ${pct.toFixed(0)}% of that range.`;
+    return `<div class="week52-row" title="${esc(tooltip)}">
+      <span class="week52-label">L ${fmtCurrency(lo, d.currency, { maximumFractionDigits: 0 })}</span>
+      <div class="week52-bar-wrap">
+        <div class="week52-bar-fill" style="width:${pct.toFixed(1)}%"></div>
+        <div class="week52-dot" style="left:${pct.toFixed(1)}%"></div>
+      </div>
+      <span class="week52-label" style="text-align:right">H ${fmtCurrency(hi, d.currency, { maximumFractionDigits: 0 })}</span>
+    </div>`;
+  }
+
+  function buildPnlHTML(sym) {
+    const d      = data[sym];
+    const shares = sharesData[sym];
+    if (!d || d.error || !shares || d.price == null) {
+      return `<div class="shares-row" id="pnl-${esc(sym)}">
+        <div class="shares-input-wrap">
+          <span>Shares:</span>
+          <input class="shares-input" type="number" min="0" step="any" placeholder="0"
+            value="${esc(String(shares ?? ''))}"
+            onchange="setShares('${esc(sym)}', this.value)"
+            onblur="setShares('${esc(sym)}', this.value)">
+        </div>
+      </div>`;
+    }
+    const value  = shares * d.price;
+    const pnl    = d.change != null ? shares * d.change : null;
+    const isUp   = (pnl ?? 0) >= 0;
+    const cls    = pnl == null ? 'flat' : isUp ? 'up' : 'down';
+    const sign   = (pnl ?? 0) >= 0 ? '+' : '';
+    const pnlStr = pnl != null ? `${sign}${fmtCurrency(Math.abs(pnl), d.currency)} today` : '';
+    return `<div class="shares-row" id="pnl-${esc(sym)}">
+      <div class="shares-input-wrap">
+        <span>Shares:</span>
+        <input class="shares-input" type="number" min="0" step="any" placeholder="0"
+          value="${esc(String(shares))}"
+          onchange="setShares('${esc(sym)}', this.value)"
+          onblur="setShares('${esc(sym)}', this.value)">
+      </div>
+      <div class="shares-pnl ${cls}" title="${shares} shares × ${fmtCurrency(d.price, d.currency)}">${fmtCurrency(value, d.currency)} ${pnlStr}</div>
+    </div>`;
+  }
+
+  function buildRangeTabs(sym) {
+    const active = symRanges[sym] ?? DEFAULT_RANGE;
+    return RANGES.map(r =>
+      `<button class="rtab${r.label === active ? ' active' : ''}" data-range="${esc(r.label)}" onclick="selectRange('${esc(sym)}','${esc(r.label)}')">${esc(r.label)}</button>`
+    ).join('');
+  }
+
+  function buildCustomRangePanel(sym) {
+    const saved = getStoredCustomRange(sym);
+    const activeRange = symRanges[sym] ?? DEFAULT_RANGE;
+    const isApplied = isCustomRangeLabel(activeRange);
+    const editorOpen = !!customEditors[sym];
+    const panelOpen = isApplied || editorOpen;
+
+    // After apply: show compact summary + Edit; before apply or while editing: show date form
+    const showSummary = isApplied && !editorOpen;
+
+    const summaryContent = showSummary ? (() => {
+      const parsed = parseCustomRangeKey(activeRange);
+      if (!parsed) return '';
+      const fmt = d => new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      return `<div class="custom-range-summary">
+        <span>${fmt(parsed.start)} → ${fmt(parsed.end)}</span>
+        <button class="custom-range-edit-btn" type="button" onclick="openCustomRangeEditor('${esc(sym)}')">Edit</button>
+      </div>`;
+    })() : `<div class="custom-range-fields">
+      <div class="custom-range-dates-row">
+        <label class="custom-range-field">
+          <span>From</span>
+          <input class="custom-range-input" id="customStart-${esc(sym)}" type="date" value="${esc(saved.start)}" max="${esc(getTodayInputValue())}">
+        </label>
+        <label class="custom-range-field">
+          <span>To</span>
+          <input class="custom-range-input" id="customEnd-${esc(sym)}" type="date" value="${esc(saved.end)}" max="${esc(getTodayInputValue())}">
+        </label>
+      </div>
+      <button class="custom-range-apply" type="button" onclick="applyCustomRange('${esc(sym)}')">Apply</button>
+    </div>`;
+
+    return `<div class="custom-range-panel${panelOpen ? ' open' : ''}" id="customPanel-${esc(sym)}">
+      ${summaryContent}
+    </div>`;
+  }
+
+  function openCustomRangeEditor(sym) {
+    customEditors[sym] = true;
+    const panel = document.getElementById('customPanel-' + sym);
+    if (!panel) return;
+    // Re-render just the panel inline without a full card replace
+    panel.outerHTML; // trigger read
+    const saved = getStoredCustomRange(sym);
+    panel.innerHTML = `<div class="custom-range-fields">
+      <div class="custom-range-dates-row">
+        <label class="custom-range-field">
+          <span>From</span>
+          <input class="custom-range-input" id="customStart-${esc(sym)}" type="date" value="${esc(saved.start)}" max="${esc(getTodayInputValue())}">
+        </label>
+        <label class="custom-range-field">
+          <span>To</span>
+          <input class="custom-range-input" id="customEnd-${esc(sym)}" type="date" value="${esc(saved.end)}" max="${esc(getTodayInputValue())}">
+        </label>
+      </div>
+      <button class="custom-range-apply" type="button" onclick="applyCustomRange('${esc(sym)}')">Apply</button>
+    </div>`;
+    panel.classList.add('open');
+  }
+
+  function toggleCustomRangeEditor(sym) {
+    customEditors[sym] = !customEditors[sym];
+    replaceCard(sym);
+  }
+
+  async function applyCustomRange(sym) {
+    const startInput = document.getElementById('customStart-' + sym);
+    const endInput = document.getElementById('customEnd-' + sym);
+    if (!startInput || !endInput) return;
+    const start = startInput.value;
+    const end = endInput.value;
+    if (!start || !end) {
+      toast('Select both a start and end date.', 'error');
+      return;
+    }
+    if (start > end) {
+      toast('The start date must be before the end date.', 'error');
+      return;
+    }
+
+    customRanges[sym] = { start, end };
+    persistCustomRanges();
+    customEditors[sym] = false; // close editor, show summary after apply
+    await selectRange(sym, buildCustomRangeKey(start, end));
+  }
+
+  function buildCardHTML(sym) {
+    const d = data[sym];
+
+    if (!d || d.error) {
+      const attempt   = d?.retryAttempt ?? 0;
+      const maxed     = attempt >= RETRY_DELAYS.length;
+      const nextSecs  = !maxed ? RETRY_DELAYS[attempt] : null;
+      const statusMsg = maxed
+        ? 'Could not load after several attempts. The data service may be temporarily unavailable.'
+        : `Data service is busy — will retry automatically in ${nextSecs}s.`;
+      return `<div class="stock-card" id="card-${esc(sym)}">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="symbol">${esc(sym)}</div>
+          </div>
+          <button class="remove-btn" onclick="removeStock('${esc(sym)}')" title="Remove">✕</button>
+        </div>
+        <div class="error-label">${esc(statusMsg)}</div>
+        <div class="retry-countdown" id="rcd-${esc(sym)}"></div>
+        <button class="retry-btn" onclick="manualRetry('${esc(sym)}')">↻ Retry now</button>
+      </div>`;
+    }
+
+    const isUp      = (d.change ?? 0) >= 0;
+    const isFlat    = d.change == null;
+    const cls       = isFlat ? 'flat' : isUp ? 'up' : 'down';
+    const arrow     = isFlat ? '' : isUp ? '▲ ' : '▼ ';
+    const sign      = (d.change ?? 0) >= 0 ? '+' : '';
+    const changeStr = d.change != null
+      ? `${arrow}${sign}${fmtCurrency(Math.abs(d.change), d.currency)} (${sign}${d.changePct.toFixed(2)}%) Today`
+      : '—';
+
+    return `<div class="stock-card" id="card-${esc(sym)}">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="symbol">${esc(sym)}</div>
+          <div class="company-name" title="${esc(d.name)}">${esc(d.name)}</div>
+        </div>
+        <div class="card-header-right">
+          <div class="card-actions">
+            <span class="drag-handle" title="Drag to reorder">⠿</span>
+            <button class="custom-range-toggle${isCustomRangeLabel(symRanges[sym] ?? DEFAULT_RANGE) ? ' active' : ''}" id="customToggle-${esc(sym)}" onclick="toggleCustomRangeEditor('${esc(sym)}')" type="button">Custom</button>
+            <button class="remove-btn" onclick="removeStock('${esc(sym)}')" title="Remove">✕</button>
+          </div>
+          ${buildCustomRangePanel(sym)}
+        </div>
+      </div>
+      <div class="price-row">
+        <div class="price">${d.price != null ? fmtCurrency(d.price, d.currency) : '—'}</div>
+        <div class="currency-code">${esc(fmtCurrencyCode(d.currency))}</div>
+      </div>
+      ${buildWeek52HTML(sym)}
+      ${buildPnlHTML(sym)}
+      <div class="range-change ${cls}" id="rchange-${esc(sym)}">${changeStr}</div>
+      <div class="range-tabs" id="rtabs-${esc(sym)}">${buildRangeTabs(sym)}</div>
+      <div class="sparkline-wrap" id="spark-${esc(sym)}"></div>
+    </div>`;
+  }
+
+  // ── Sparkline ────────────────────────────────────────────────────────────────
+  function drawSparkline(sym) {
+    const active = symRanges[sym] ?? DEFAULT_RANGE;
+    const chart  = chartCache[sym]?.[active];
+    if (chart?.closes?.length >= 2) drawSparklineFromData(sym, chart.closes, chart.timestamps ?? []);
+  }
+
+  function drawSparklineFromData(sym, pts, timestamps = []) {
+    const wrap = document.getElementById('spark-' + sym);
+    const d    = data[sym];
+    if (!wrap || !pts?.length || pts.length < 2 || !d) return;
+
+    // Match the SVG coordinate space to the actual rendered size so the line is not
+    // non-uniformly scaled in wide 1-column layouts.
+    const wrapWidth = Math.max(Math.round(wrap.clientWidth || 0), 160);
+    const W   = Math.max(wrapWidth - 38, 120);
+    const H   = 112;
+    const PAD = 4;
+    const CW  = W - PAD * 2;
+    const CH  = H - PAD * 2;
+
+    const min   = Math.min(...pts);
+    const max   = Math.max(...pts);
+    const range = max - min || 1;
+
+    const sx = i => PAD + (i / (pts.length - 1)) * CW;
+    const sy = v => PAD + (1 - (v - min) / range) * CH;
+
+    const lineP = pts.map((v, i) => `${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
+    const areaP = `${sx(0).toFixed(1)},${(PAD + CH).toFixed(1)} ${lineP} ${sx(pts.length-1).toFixed(1)},${(PAD + CH).toFixed(1)}`;
+
+    const isUp   = pts.at(-1) >= pts[0];
+    const stroke = isUp ? '#22c55e' : '#ef4444';
+    const gid    = `g-${sym.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+    // ── Y axis: gridlines in SVG + HTML labels (never stretched) ──
+    const yTicks = 4;
+    let gridLines = '';
+    let yLabels   = '';
+    for (let i = 0; i <= yTicks; i++) {
+      const val = min + (i / yTicks) * range;
+      const y   = parseFloat(sy(val).toFixed(1));
+      const pct = (y / H * 100).toFixed(2);
+      gridLines += `<line x1="${PAD}" y1="${y}" x2="${W - PAD}" y2="${y}" stroke="#2a2d3a" stroke-width="0.5" vector-effect="non-scaling-stroke"/>`;
+      yLabels   += `<div class="y-label" style="top:${pct}%">${fmtAxisPrice(val, d.currency)}</div>`;
+    }
+
+    // ── X axis: HTML labels below chart (never stretched) ──
+    const activeRange = symRanges[sym] ?? DEFAULT_RANGE;
+    let xLabels = '';
+    for (let i = 0; i <= 4; i++) {
+      const idx = Math.round((i / 4) * (pts.length - 1));
+      const ts  = timestamps[idx];
+      xLabels += `<span class="x-label">${ts ? fmtAxisDate(ts * 1000, activeRange) : ''}</span>`;
+    }
+
+    const crosshairId = `ch-${gid}`;
+    const dotId       = `cd-${gid}`;
+
+    // tooltip lives inside svg-container so it's clipped cleanly and positioned simply
+    wrap.innerHTML = `
+      <div class="chart-y-axis">${yLabels}</div>
+      <div class="chart-svg-container"
+           data-sym="${esc(sym)}" data-gid="${gid}"
+           data-pad="${PAD}" data-cw="${CW}" data-ch="${CH}"
+           data-sy-min="${min}" data-sy-range="${range}"
+           data-w="${W}" data-h="${H}"
+           onmousemove="chartHover(event)" onmouseleave="chartLeave(event)">
+        <div class="chart-tooltip" id="tt-${gid}"></div>
+        <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+          <defs>
+            <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="${stroke}" stop-opacity=".3"/>
+              <stop offset="100%" stop-color="${stroke}" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          ${gridLines}
+          <polygon points="${areaP}" fill="url(#${gid})"/>
+              <polyline points="${lineP}" fill="none" stroke="${stroke}" stroke-width="1.6" vector-effect="non-scaling-stroke"
+                    stroke-linejoin="round" stroke-linecap="round"/>
+              <line id="${crosshairId}" x1="0" y1="${PAD}" x2="0" y2="${PAD + CH}" vector-effect="non-scaling-stroke"
+                stroke="#8892a4" stroke-width="1" stroke-dasharray="3,2" display="none"/>
+        </svg>
+          <div class="chart-dot" id="${dotId}" style="background:${stroke}"></div>
+      </div>
+      <div class="chart-x-axis">${xLabels}</div>`;
+
+    const svgEl = wrap.querySelector('svg');
+    svgEl._chartPts = pts;
+    svgEl._chartTs  = timestamps;
+    svgEl._currency = d.currency;
+    svgEl._stroke   = stroke;
+  }
+
+  // ── Chart hover ──────────────────────────────────────────────────────────────
+  function chartHover(e) {
+    const container = e.currentTarget; // .chart-svg-container
+    const svg  = container.querySelector('svg');
+    const rect = container.getBoundingClientRect();
+    const pts  = svg._chartPts;
+    const ts   = svg._chartTs;
+    if (!pts || pts.length < 2) return;
+
+    const PAD = parseFloat(container.dataset.pad);
+    const CW  = parseFloat(container.dataset.cw);
+    const CH  = parseFloat(container.dataset.ch);
+    const W   = parseFloat(container.dataset.w);
+    const H   = parseFloat(container.dataset.h);
+    const min = parseFloat(container.dataset.syMin);
+    const rng = parseFloat(container.dataset.syRange);
+    const gid = container.dataset.gid;
+    const currency = svg._currency;
+    const stroke   = svg._stroke;
+
+    // Map mouse x (pixels in container) -> SVG viewBox x
+    const relX   = e.clientX - rect.left;
+    const svgX   = (relX / rect.width) * W;
+    const chartX = Math.max(PAD, Math.min(svgX, PAD + CW));
+    const frac   = (chartX - PAD) / CW;
+    const idx    = Math.max(0, Math.min(Math.round(frac * (pts.length - 1)), pts.length - 1));
+
+    const price = pts[idx];
+    const pxX   = (PAD + (idx / (pts.length - 1)) * CW).toFixed(1);
+    const pxY   = (PAD + (1 - (price - min) / rng) * CH).toFixed(1);
+
+    const ch = document.getElementById('ch-' + gid);
+    const cd = document.getElementById('cd-' + gid);
+    if (ch) { ch.setAttribute('x1', pxX); ch.setAttribute('x2', pxX); ch.removeAttribute('display'); }
+    if (cd) {
+      // Map SVG viewBox coords to container pixels — dot stays a perfect circle
+      const dotLeft = (parseFloat(pxX) / W) * container.offsetWidth;
+      const dotTop  = (parseFloat(pxY) / H) * container.offsetHeight;
+      cd.style.left    = dotLeft + 'px';
+      cd.style.top     = dotTop + 'px';
+      cd.style.display = 'block';
+    }
+
+    const tt = document.getElementById('tt-' + gid);
+    if (!tt) return;
+    const tsMs = ts?.[idx] ? ts[idx] * 1000 : null;
+    const activeRange = symRanges[container.dataset.sym] ?? DEFAULT_RANGE;
+    const dateStr = tsMs ? fmtTooltipDate(tsMs, activeRange) : '';
+
+    tt.innerHTML = `<div class="tt-price">${fmtCurrency(price, currency)}<span class="tt-currency">${esc(fmtCurrencyCode(currency))}</span></div>${dateStr ? `<div class="tt-date">${dateStr}</div>` : ''}`;
+    tt.style.display = 'block';
+
+    // Tooltip is inside .chart-svg-container (position: relative), so coords are relative to it
+    const containerW = container.offsetWidth;
+    const containerH = container.offsetHeight;
+    const ttW = tt.offsetWidth || 110;
+    const ttH = tt.offsetHeight || 40;
+    let left = relX + 12;
+    if (left + ttW > containerW - 4) left = relX - ttW - 12;
+    if (left < 0) left = 4;
+    const approxY = (parseFloat(pxY) / H) * containerH;
+    let top = approxY - ttH / 2;
+    top = Math.max(0, Math.min(top, containerH - ttH - 2));
+    tt.style.left = left + 'px';
+    tt.style.top  = top + 'px';
+  }
+
+  function chartLeave(e) {
+    const container = e.currentTarget;
+    const gid = container.dataset.gid;
+    const ch  = document.getElementById('ch-' + gid);
+    const cd  = document.getElementById('cd-' + gid);
+    const tt  = document.getElementById('tt-' + gid);
+    if (ch) ch.setAttribute('display', 'none');
+    if (cd) cd.style.display = 'none';
+    if (tt) tt.style.display = 'none';
+  }
+
+  // ── Axis formatting helpers ──────────────────────────────────────────────────
+  function fmtAxisPrice(value, currency = 'USD') {
+    const normalizedValue = normalizeCurrencyValue(value, currency);
+    const abs = Math.abs(normalizedValue);
+    const suffix = abs >= 1000 ? 'k' : '';
+    const displayValue = abs >= 1000 ? normalizedValue / 1000 : normalizedValue;
+    const fractionDigits = abs >= 1000 ? 1 : abs >= 1 ? (abs < 10 ? 2 : 0) : 4;
+    return fmtCurrency(displayValue, currency, {
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+    }) + suffix;
+  }
+
+  function fmtAxisDate(ms, rangeLabel) {
+    const d = new Date(ms);
+    if (rangeLabel === '1D')
+      return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    if (isCustomRangeLabel(rangeLabel))
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (['5D','1M'].includes(rangeLabel))
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (['6M','YTD','1Y'].includes(rangeLabel))
+      return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  }
+
+  function fmtTooltipDate(ms, rangeLabel) {
+    const d = new Date(ms);
+    if (rangeLabel === '1D')
+      return d.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric',
+        hour: 'numeric', minute: '2-digit', hour12: true });
+    if (isCustomRangeLabel(rangeLabel))
+      return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  function fmtCurrency(value, currency = 'USD', overrides = {}) {
+    try {
+      const normalizedCurrency = normalizeCurrencyCode(currency);
+      const normalizedValue = normalizeCurrencyValue(value, currency);
+      const locale = normalizedCurrency === 'GBP' ? 'en-GB' : 'en-US';
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: normalizedCurrency,
+        currencyDisplay: 'symbol',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+        ...overrides,
+      }).format(normalizedValue);
+    } catch {
+      return value.toFixed(2);
+    }
+  }
+
+  function fmtCurrencyCode(currency = 'USD') {
+    return currency === 'GBX' ? 'GBX' : normalizeCurrencyCode(currency);
+  }
+
+  function normalizeCurrencyCode(currency = 'USD') {
+    return currency === 'GBX' ? 'GBP' : (currency || 'USD');
+  }
+
+  function normalizeCurrencyValue(value, currency = 'USD') {
+    return currency === 'GBX' ? value / 100 : value;
+  }
+
+  function esc(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function persist()       { localStorage.setItem(STORAGE_KEY, JSON.stringify(symbols)); }
+  function persistRanges() { localStorage.setItem(RANGE_KEY,   JSON.stringify(symRanges)); }
+
+  function applyTheme(nextTheme) {
+    theme = nextTheme === 'light' ? 'light' : 'dark';
+    document.body.dataset.theme = theme;
+    const input = document.getElementById('themeToggle');
+    if (input) input.checked = theme === 'light';
+  }
+
+  function toggleTheme() {
+    applyTheme(theme === 'dark' ? 'light' : 'dark');
+    localStorage.setItem(THEME_KEY, theme);
+  }
+
+  function toggleHelp() {
+    const panel    = document.getElementById('helpPanel');
+    const backdrop = document.getElementById('helpBackdrop');
+    const btn      = document.getElementById('helpBtn');
+    const isOpen   = panel.classList.contains('open');
+    panel.classList.toggle('open', !isOpen);
+    backdrop.classList.toggle('open', !isOpen);
+    btn.classList.toggle('active', !isOpen);
+    // Close on Escape
+    if (!isOpen) {
+      const onKey = e => { if (e.key === 'Escape') { toggleHelp(); document.removeEventListener('keydown', onKey); } };
+      document.addEventListener('keydown', onKey);
+    }
+  }
+
+  function redrawAllCharts() {
+    for (const sym of symbols) drawSparkline(sym);
+  }
+
+  // ── Column layout ────────────────────────────────────────────────────────────
+  function setCols(n) {
+    colCount = n;
+    localStorage.setItem(COLS_KEY, String(n));
+    applyColCount(n, true);
+  }
+
+  function applyColCount(n, animate) {
+    const grid = document.getElementById('stockGrid');
+    grid.classList.remove('cols-1','cols-2','cols-3','cols-4');
+    if (n >= 1 && n <= 4) grid.classList.add('cols-' + n);
+    document.querySelectorAll('.col-btn').forEach(btn => {
+      btn.classList.toggle('active', parseInt(btn.dataset.cols, 10) === n);
+    });
+    requestAnimationFrame(redrawAllCharts);
+  }
+  function updateCount()   { document.getElementById('stockCount').textContent = symbols.length ? `${symbols.length} stock${symbols.length !== 1 ? 's' : ''} on watchlist` : ''; }
+
+  function ensureEmptyGone() {
+    const empty = document.querySelector('.empty-state');
+    if (empty) empty.closest('.stock-grid').innerHTML = '';
+  }
+
+  function checkEmpty() {
+    if (!symbols.length) {
+      document.getElementById('stockGrid').innerHTML = `
+        <div class="empty-state">
+          <div class="icon">📊</div>
+          <h2>Your watchlist is empty</h2>
+          <p>Type a ticker symbol above, or use a Quick Add chip to get started.</p>
+        </div>`;
+      updateCount();
+    }
+  }
+
+  function toast(message, type = 'success') {
+    document.querySelectorAll('.toast').forEach(t => t.remove());
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = message;
+    document.body.appendChild(el);
+    setTimeout(() => {
+      el.style.transition = 'opacity .3s';
+      el.style.opacity    = '0';
+      setTimeout(() => el.remove(), 320);
+    }, 3000);
+  }
+</script>
+</body>
+</html>

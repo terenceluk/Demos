@@ -14,6 +14,7 @@ Self-contained, single-file browser games — no build step required. Open any f
 |------|-------------|
 | [Mario Kart Clone](HTML/mario-kart/index.html) | Top-down racing game with laps, coins, and keyboard steering controls |
 | [Space Invaders Clone](HTML/space-invaders/index.html) | Classic arcade shooter with wave-based alien enemies |
+| [Stock Dashboard](HTML/stock-dashboard/index.html) | Browser-based stock market dashboard with watchlist, charts, and theme toggle |
 
 ---
 
